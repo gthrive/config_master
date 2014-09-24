@@ -46,7 +46,7 @@ class ConfigManager
       else
         @config = {}
         if ENV['DEPLOY_URLS']
-          ENV['DEPLOY_URLS'].split(',').each_with_object({}) {|v,h| h[v] = ""}
+          @config = ENV['DEPLOY_URLS'].split(',').each_with_object({}) {|v,h| h[v] = ""}
         end
       end
 
