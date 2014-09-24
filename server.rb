@@ -41,7 +41,14 @@ class ConfigManager
     end
 
     def reset_config
-      @config = YAML.load(IO.read 'secrets.yml')["heroku_apps"].each_with_object({}) {|v,h| h[v] = ""}
+      if File.exist?('secrets.yml')
+        @config = YAML.load(IO.read 'secrets.yml')["heroku_apps"].each_with_object({}) {|v,h| h[v] = ""}
+      else
+        @config = {}
+        if ENV['DEPLOY_URLS']
+          ENV['DEPLOY_URLS'].split(',').each_with_object({}) {|v,h| h[v] = ""}
+        end
+      end
 
       save_config
       @config
