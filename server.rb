@@ -1,6 +1,7 @@
 require 'sinatra'
 require 'newrelic_rpm'
 require 'json'
+require 'redis'
 require 'yaml'
 
 CONFIG_PATH = File.join __dir__, 'ci-deploys.json'
@@ -25,62 +26,54 @@ end
 class ConfigManager
   class << self
     def load_or_init_config
-      unless File.exist?(CONFIG_PATH)
-        open(CONFIG_PATH, 'w') {|f| f.write '{}' }
-        reset_config
-      end
-
-      reload_config
-    end
-
-    def reload_config
-      @config = JSON.parse(IO.read CONFIG_PATH)
-    end
-
-    def save_config
-      open(CONFIG_PATH, 'w') {|f| f.write JSON.pretty_unparse(@config)}
+      reset_config unless APPS.map{|a| REDIS.get(a)}.all?{|a| a != nil}
     end
 
     def reset_config
-      if File.exist?('secrets.yml')
-        @config = YAML.load(IO.read 'secrets.yml')["heroku_apps"].each_with_object({}) {|v,h| h[v] = ""}
-      else
-        @config = {}
-        if ENV['DEPLOY_URLS']
-          @config = ENV['DEPLOY_URLS'].split(',').each_with_object({}) {|v,h| h[v] = ""}
-        end
-      end
-
-      save_config
-      @config
+      APPS.each { |u| REDIS.set(u, '') }
     end
 
     def update_config(app, branch)
-      @config[app] = branch
-      save_config
+      REDIS.set(app, branch)
     end
 
     def next_available_heroku_app(branch)
-      @config.keys.find { |k| @config[k] == branch } ||
-        @config.keys.find { |k| @config[k].empty? }
+      APPS.each do |a|
+        if REDIS.get(a) == branch
+          return a
+        end
+      end
+
+      APPS.each do |a|
+        if REDIS.get(a) == ''
+          return a
+        end
+      end
+
+      nil
     end
 
-    def release_app_for_branch(branch)
-      app_name = @config.keys.find { |k| @config[k] == branch }
-      if app_name
-        update_config(app_name, "")
-      else
-        puts "Tried to release app for branch #{branch}, but none associated. Ignoring"
+    def to_hash
+      APPS.each_with_object({}) do |a, h|
+        h[a] = REDIS.get(a)
       end
     end
 
-    def config
-      @config ||= load_or_init_config
+    def release_app_for_branch(branch)
+      app = APPS.find{|a| REDIS.get(a) == branch}
+      REDIS.set(app, '')
     end
   end
 end
 
 configure do
+  if ENV["REDISTOGO_URL"]
+    uri = URI.parse(ENV["REDISTOGO_URL"])
+    REDIS = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
+  else
+    REDIS = Redis.new
+  end
+  APPS = (ENV['DEPLOY_URLS'] || '').split(',')
   if File.exist? 'secrets.yml'
     ApiKeys.load YAML.load open('secrets.yml').read
   end
@@ -103,7 +96,7 @@ end
 
 get '/config' do
   content_type :json
-  ConfigManager.config.to_json
+  ConfigManager.to_hash.to_json
 end
 
 get '/reset_config/:password' do
@@ -112,7 +105,7 @@ get '/reset_config/:password' do
     ConfigManager.reset_config
 
     status 200
-    ConfigManager.config.to_json
+    ConfigManager.to_hash.to_json
   else
     status 401
     {nope: "wrong"}.to_json
