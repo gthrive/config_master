@@ -3,6 +3,7 @@ GEM
   specs:
     coderay (1.1.0)
     method_source (0.8.2)
+    newrelic_rpm (3.8.1.221)
     pry (0.10.1)
       coderay (~> 1.1.0)
       method_source (~> 0.8.1)
@@ -23,6 +24,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  newrelic_rpm
   pry
   rake
   redis
