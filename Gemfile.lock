@@ -3,6 +3,7 @@ GEM
   specs:
     coderay (1.1.0)
     method_source (0.8.2)
+    newrelic_rpm (3.8.1.221)
     pry (0.10.1)
       coderay (~> 1.1.0)
       method_source (~> 0.8.1)
@@ -11,6 +12,7 @@ GEM
     rack-protection (1.5.3)
       rack
     rake (10.3.2)
+    redis (3.1.0)
     sinatra (1.4.5)
       rack (~> 1.4)
       rack-protection (~> 1.4)
@@ -22,6 +24,8 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  newrelic_rpm
   pry
   rake
+  redis
   sinatra
