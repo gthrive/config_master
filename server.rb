@@ -25,7 +25,7 @@ end
 class ConfigManager
   class << self
     def load_or_init_config
-      reset_config unless APPS.map{|a| REDIS.get(a)}.all?{|a| a != nil}
+      APPS.each { |a| REDIS.set(a, '') if REDIS.get(a) == nil }
     end
 
     def reset_config
